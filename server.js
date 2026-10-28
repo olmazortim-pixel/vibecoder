@@ -1,20 +1,12 @@
 const http = require('http');
 
-// ANSI-коды для управления терминалом
-const CLEAR_SCREEN = '\x1b[2J\x1b[H'; // Очистить экран и поднять курсор вверх
-const RESET_COLOR = '\x1b[0m';       // Сбросить цвет
+const CLEAR_SCREEN = '\x1b[2J\x1b[H';
+const RESET_COLOR = '\x1b[0m';
 
 const COLORS = [
-    '\x1b[31m', // Красный
-    '\x1b[33m', // Желтый
-    '\x1b[32m', // Зеленый
-    '\x1b[36m', // Циановый
-    '\x1b[34m', // Синий
-    '\x1b[35m'  // Пурпурный
+    '\x1b[31m', '\x1b[33m', '\x1b[32m', '\x1b[36m', '\x1b[34m', '\x1b[35m'
 ];
 
-// Кадры анимации (слова отцентрованы для стандартной CMD шириной 80 символов)
-// Между кадрами меняется нижний индикатор [ >>> ] для эффекта движения
 const frames = [
 `
 
@@ -91,21 +83,10 @@ const frames = [
 ];
 
 const server = http.createServer((req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-    
-    // Браузерам показываем обычную подсказку
-    if (!userAgent.includes('curl')) {
-        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Скопируй команду и запусти в CMD: curl ' + (req.headers.host || 'ссылка'));
-        return;
-    }
-
-    // Включаем потоковую передачу для curl
-    res.writeHead(200, {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
-    });
+    // Форсируем отдачу только чистого текста, чтобы Render не пихал свой HTML/JS
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.writeHead(200);
 
     let frameIndex = 0;
     let colorIndex = 0;
@@ -113,8 +94,6 @@ const server = http.createServer((req, res) => {
     const interval = setInterval(() => {
         const color = COLORS[colorIndex];
         const frame = frames[frameIndex];
-
-        // Очищаем экран, красим в цвет, выводим арт, сбрасываем цвет
         const output = CLEAR_SCREEN + color + frame + RESET_COLOR;
 
         if (!res.write(output)) {
@@ -124,7 +103,7 @@ const server = http.createServer((req, res) => {
 
         frameIndex = (frameIndex + 1) % frames.length;
         colorIndex = (colorIndex + 1) % COLORS.length;
-    }, 250); // Скорость смены цветов и кадров (250 мс)
+    }, 250);
 
     req.on('close', () => {
         clearInterval(interval);
@@ -133,5 +112,5 @@ const server = http.createServer((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Сервер активен на порту ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
