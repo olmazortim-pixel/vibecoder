@@ -83,9 +83,10 @@ const frames = [
 ];
 
 const server = http.createServer((req, res) => {
-    // Форсируем отдачу только чистого текста, чтобы Render не пихал свой HTML/JS
+    // Говорим прокси-серверу Render, что это НЕ html, а бинарный бесконечный поток текста
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Transfer-Encoding', 'chunked');
     res.writeHead(200);
 
     let frameIndex = 0;
@@ -96,14 +97,16 @@ const server = http.createServer((req, res) => {
         const frame = frames[frameIndex];
         const output = CLEAR_SCREEN + color + frame + RESET_COLOR;
 
+        // Если клиент отключился — прекращаем слать данные
         if (!res.write(output)) {
             clearInterval(interval);
+            res.end();
             return;
         }
 
         frameIndex = (frameIndex + 1) % frames.length;
         colorIndex = (colorIndex + 1) % COLORS.length;
-    }, 250);
+    }, 200);
 
     req.on('close', () => {
         clearInterval(interval);
@@ -112,5 +115,5 @@ const server = http.createServer((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server ok on ${PORT}`);
 });
